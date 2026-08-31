@@ -54,6 +54,9 @@
     <ClCompile Include="src\network.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\udpstats.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\packages.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -123,6 +126,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\network.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\udpstats.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\packages.h">

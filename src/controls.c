@@ -53,6 +53,17 @@ VOID _app_getapptooltipstring (
 		_r_obj_appendstringbuilder (buffer, SZ_CRLF);
 	}
 
+	// UDP accounting status
+	if (ptr_network && ptr_network->protocol == IPPROTO_UDP &&
+		(ptr_network->is_stats_initialized || InterlockedCompareExchange (&ptr_network->traffic_error, 0, 0)))
+	{
+		LONG error = InterlockedCompareExchange (&ptr_network->traffic_error, 0, 0);
+		_r_obj_appendstringbuilder (buffer, _r_locale_getstring (error == ERROR_NOT_READY ? IDS_UDP_PENDING : (error ? IDS_UDP_UNAVAILABLE : IDS_UDP_ACCOUNTING)));
+		if (error && error != ERROR_NOT_READY)
+			_r_obj_appendstringbuilderformat (buffer, L" (%lu)", (ULONG)error);
+		_r_obj_appendstringbuilder (buffer, SZ_CRLF);
+	}
+
 	// file information
 	_r_obj_initializestringbuilder (&sb, 0);
 

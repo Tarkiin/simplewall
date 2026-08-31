@@ -132,6 +132,51 @@ PITEM_NETWORK_CONTEXT _app_network_getcontext ()
 	return network_context;
 }
 
+static VOID _app_network_update_udp_stats (
+	_Inout_ PITEM_NETWORK ptr_network,
+	_In_ PITEM_NETWORK_CONTEXT context,
+	_In_ ULONG pid,
+	_In_ ULONG64 created,
+	_In_ ULONG scope_id
+)
+{
+	UDP_ENDPOINT endpoint = {0};
+	UDP_SNAPSHOT snapshot;
+	if (!context->udp_stats)
+		return;
+
+	endpoint.pid = pid;
+	endpoint.af = ptr_network->af;
+	endpoint.port = ptr_network->local_port;
+	endpoint.created = created;
+	endpoint.scope_id = scope_id;
+	RtlCopyMemory (endpoint.address, &ptr_network->local_addr, endpoint.af == AF_INET ? 4 : 16);
+	udp_stats_read (context->udp_stats, &endpoint, &snapshot);
+	InterlockedExchange (&ptr_network->traffic_error, snapshot.error);
+	if (snapshot.error)
+	{
+		ptr_network->is_stats_initialized = FALSE;
+		return;
+	}
+	if (ptr_network->udp_created != created)
+	{
+		ptr_network->udp_created = created;
+		ptr_network->is_stats_initialized = FALSE;
+		InterlockedExchange64 (&ptr_network->download_speed, 0);
+		InterlockedExchange64 (&ptr_network->upload_speed, 0);
+	}
+	_app_network_update_stats_values (ptr_network, snapshot.received, snapshot.sent);
+	InterlockedExchange64 (&ptr_network->download_total, snapshot.received);
+	InterlockedExchange64 (&ptr_network->upload_total, snapshot.sent);
+}
+
+VOID _app_network_stop ()
+{
+	// The original network worker lives until process exit. Keep the stopped
+	// context valid for that worker; stop/join only our independent ETW consumer.
+	udp_stats_stop (_app_network_getcontext ()->udp_stats);
+}
+
 VOID _app_network_initialize (
 	_In_ HWND hwnd
 )
@@ -148,6 +193,14 @@ VOID _app_network_initialize (
 		return;
 
 	network_context->hwnd = hwnd;
+	// Opt-in: sockets created before capture cannot be mapped by AFD events.
+	if (_r_config_getboolean (L"IsUdpTrafficEnabled", FALSE, NULL))
+	{
+		network_context->udp_stats = udp_stats_create ();
+		ULONG udp_status = udp_stats_start (network_context->udp_stats);
+		if (udp_status)
+			_r_log (LOG_LEVEL_WARNING, NULL, L"UDP ETW start", udp_status, NULL);
+	}
 
 	_r_queuedlock_acquireexclusive (&network_context->lock_network);
 	_r_obj_clearhashtable (network_context->network_ptr);
@@ -189,6 +242,10 @@ VOID _app_network_generatetable (
 	PVOID buffer;
 	ULONG allocated_size, network_hash, required_size = 0;
 	ULONG status;
+	BOOL udp4_complete = FALSE, udp6_complete = FALSE;
+
+	udp_stats_poll (network_context->udp_stats);
+	udp_stats_begin_refresh (network_context->udp_stats);
 
 	_r_queuedlock_acquireexclusive (&network_context->lock_checker);
 	_r_obj_clearhashtable (network_context->checker_ptr);
@@ -381,6 +438,7 @@ VOID _app_network_generatetable (
 
 		if (status == NO_ERROR)
 		{
+			udp4_complete = TRUE;
 			for (ULONG i = 0; i < udp4_table->dwNumEntries; i++)
 			{
 				RtlZeroMemory (&local_addr, sizeof (IN_ADDR));
@@ -389,8 +447,11 @@ VOID _app_network_generatetable (
 
 				network_hash = _app_network_gethash (AF_INET, udp4_table->table[i].dwOwningPid, NULL, 0, &local_addr, udp4_table->table[i].dwLocalPort, IPPROTO_UDP, 0);
 
-				if (_app_network_isitemfound (network_hash))
+				ptr_network = _app_network_getitem (network_hash);
+				if (ptr_network)
 				{
+					_app_network_update_udp_stats (ptr_network, network_context, udp4_table->table[i].dwOwningPid, udp4_table->table[i].liCreateTimestamp.QuadPart, 0);
+					_r_obj_dereference (ptr_network);
 					_r_queuedlock_acquireexclusive (&network_context->lock_checker);
 					_r_obj_addhashtablepointer (network_context->checker_ptr, network_hash, NULL);
 					_r_queuedlock_releaseexclusive (&network_context->lock_checker);
@@ -412,6 +473,7 @@ VOID _app_network_generatetable (
 
 				ptr_network->local_addr.S_un.S_addr = udp4_table->table[i].dwLocalAddr;
 				ptr_network->local_port = _r_byteswap_ushort ((USHORT)udp4_table->table[i].dwLocalPort);
+				_app_network_update_udp_stats (ptr_network, network_context, udp4_table->table[i].dwOwningPid, udp4_table->table[i].liCreateTimestamp.QuadPart, 0);
 
 				if (_app_network_isvalidconnection (ptr_network->af, &ptr_network->local_addr))
 					ptr_network->is_connection = TRUE;
@@ -444,12 +506,16 @@ VOID _app_network_generatetable (
 
 		if (status == NO_ERROR)
 		{
+			udp6_complete = TRUE;
 			for (ULONG i = 0; i < udp6_table->dwNumEntries; i++)
 			{
 				network_hash = _app_network_gethash (AF_INET6, udp6_table->table[i].dwOwningPid, NULL, 0, udp6_table->table[i].ucLocalAddr, udp6_table->table[i].dwLocalPort, IPPROTO_UDP, 0);
 
-				if (_app_network_isitemfound (network_hash))
+				ptr_network = _app_network_getitem (network_hash);
+				if (ptr_network)
 				{
+					_app_network_update_udp_stats (ptr_network, network_context, udp6_table->table[i].dwOwningPid, udp6_table->table[i].liCreateTimestamp.QuadPart, udp6_table->table[i].dwLocalScopeId);
+					_r_obj_dereference (ptr_network);
 					_r_queuedlock_acquireexclusive (&network_context->lock_checker);
 					_r_obj_addhashtablepointer (network_context->checker_ptr, network_hash, NULL);
 					_r_queuedlock_releaseexclusive (&network_context->lock_checker);
@@ -471,6 +537,7 @@ VOID _app_network_generatetable (
 
 				RtlCopyMemory (ptr_network->local_addr6.u.Byte, udp6_table->table[i].ucLocalAddr, FWP_V6_ADDR_SIZE);
 				ptr_network->local_port = _r_byteswap_ushort ((USHORT)udp6_table->table[i].dwLocalPort);
+				_app_network_update_udp_stats (ptr_network, network_context, udp6_table->table[i].dwOwningPid, udp6_table->table[i].liCreateTimestamp.QuadPart, udp6_table->table[i].dwLocalScopeId);
 
 				if (_app_network_isvalidconnection (ptr_network->af, &ptr_network->local_addr6))
 					ptr_network->is_connection = TRUE;
@@ -485,6 +552,8 @@ VOID _app_network_generatetable (
 			}
 		}
 	}
+
+	udp_stats_end_refresh (network_context->udp_stats, udp4_complete, udp6_complete);
 
 	if (buffer)
 		_r_mem_free (buffer);

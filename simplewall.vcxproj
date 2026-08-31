@@ -387,6 +387,7 @@
     <ClCompile Include="src\log.c" />
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\network.c" />
+    <ClCompile Include="src\udpstats.c" />
     <ClCompile Include="src\notifications.c" />
     <ClCompile Include="src\packages.c" />
     <ClCompile Include="src\profile.c" />
@@ -415,6 +416,7 @@
     <ClInclude Include="src\log.h" />
     <ClInclude Include="src\main.h" />
     <ClInclude Include="src\network.h" />
+    <ClInclude Include="src\udpstats.h" />
     <ClInclude Include="src\notifications.h" />
     <ClInclude Include="src\packages.h" />
     <ClInclude Include="src\profile.h" />
