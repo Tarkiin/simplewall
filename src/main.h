@@ -444,6 +444,8 @@ typedef struct _ITEM_NETWORK
 	ULONG64 last_bytes_in;
 	ULONG64 last_bytes_out;
 	ULONG64 last_stats_tick;
+	ULONG64 udp_created;
+	volatile LONG traffic_error;
 } ITEM_NETWORK, *PITEM_NETWORK;
 
 typedef struct _ITEM_STATUS

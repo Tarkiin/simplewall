@@ -85,6 +85,7 @@ VOID _app_message_initialize (
 		_r_menu_checkitem (hmenu, IDM_USEHASHES_CHK, 0, MF_BYCOMMAND, is_enabled);
 		_r_menu_checkitem (hmenu, IDM_USENETWORKRESOLUTION_CHK, 0, MF_BYCOMMAND, _r_config_getboolean (L"IsNetworkResolutionsEnabled", TRUE, NULL));
 		_r_menu_checkitem (hmenu, IDM_USEAPPMONITOR_CHK, 0, MF_BYCOMMAND, _r_config_getboolean (L"IsEnableAppMonitor", FALSE, NULL));
+		_r_menu_checkitem (hmenu, IDM_UDPTRAFFIC_CHK, 0, MF_BYCOMMAND, _r_config_getboolean (L"IsUdpTrafficEnabled", FALSE, NULL));
 
 		_r_menu_enableitem (hmenu, IDM_USEAPPMONITOR_CHK, FALSE, is_enabled);
 
@@ -192,6 +193,7 @@ VOID _app_message_localize (
 		_r_menu_setitemtext (hmenu, IDM_KEEPUNUSED_CHK, FALSE, _r_locale_getstring (IDS_KEEPUNUSED_CHK));
 		_r_menu_setitemtext (hmenu, IDM_USEHASHES_CHK, FALSE, _r_locale_getstring (IDS_USEHASHES_CHK));
 		_r_menu_setitemtext (hmenu, IDM_USEAPPMONITOR_CHK, FALSE, _r_locale_getstring (IDS_USEAPPMONITOR_CHK));
+		_r_menu_setitemtext (hmenu, IDM_UDPTRAFFIC_CHK, FALSE, _r_locale_getstring (IDS_UDPTRAFFIC_CHK));
 
 		hsubmenu = GetSubMenu (hmenu, 3);
 
@@ -1405,6 +1407,11 @@ VOID _app_displayinfonetwork_callback (
 			case 10:
 			case 11:
 			{
+				if (ptr_network->protocol == IPPROTO_UDP && InterlockedCompareExchange (&ptr_network->traffic_error, 0, 0))
+				{
+					_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, L"\x2014");
+					break;
+				}
 				if (!ptr_network->is_stats_initialized)
 					break;
 

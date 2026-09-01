@@ -253,6 +253,12 @@ VOID _app_config_apply (
 			break;
 		}
 
+		case IDM_UDPTRAFFIC_CHK:
+		{
+			new_val = !_r_config_getboolean (L"IsUdpTrafficEnabled", FALSE, NULL);
+			break;
+		}
+
 		case IDM_USEDARKTHEME_CHK:
 		{
 			new_val = !_r_theme_isenabled ();
@@ -504,6 +510,14 @@ VOID _app_config_apply (
 			break;
 		}
 
+		case IDM_UDPTRAFFIC_CHK:
+		{
+			// Applied on the next start, without touching firewall filters here.
+			_r_config_setboolean (L"IsUdpTrafficEnabled", new_val, NULL);
+			_r_menu_checkitem (hmenu, IDM_UDPTRAFFIC_CHK, 0, MF_BYCOMMAND, new_val);
+			break;
+		}
+
 		case IDM_USEDARKTHEME_CHK:
 		{
 			_r_menu_checkitem (hmenu, IDM_USEDARKTHEME_CHK, 0, MF_BYCOMMAND, new_val);
@@ -536,6 +550,7 @@ VOID _app_config_apply (
 		case IDM_USEHASHES_CHK:
 		case IDM_USEAPPMONITOR_CHK:
 		case IDM_USEDARKTHEME_CHK:
+		case IDM_UDPTRAFFIC_CHK:
 		{
 			return;
 		}
@@ -2109,6 +2124,7 @@ INT_PTR CALLBACK DlgProc (
 
 		case WM_DESTROY:
 		{
+			_app_network_stop ();
 			_app_loginit (FALSE);
 
 			if (_r_queuedlock_islocked (&lock_apply))
@@ -3072,6 +3088,7 @@ INT_PTR CALLBACK DlgProc (
 				case IDM_USEHASHES_CHK:
 				case IDM_USEAPPMONITOR_CHK:
 				case IDM_USEDARKTHEME_CHK:
+				case IDM_UDPTRAFFIC_CHK:
 				{
 					_app_config_apply (hwnd, NULL, ctrl_id);
 					break;

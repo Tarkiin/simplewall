@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "udpstats.h"
+
 typedef struct _ITEM_NETWORK_CONTEXT
 {
 	HWND hwnd;
@@ -12,7 +14,10 @@ typedef struct _ITEM_NETWORK_CONTEXT
 
 	PR_HASHTABLE network_ptr;
 	PR_HASHTABLE checker_ptr;
+	SW_UDP_STATS *udp_stats;
 } ITEM_NETWORK_CONTEXT, *PITEM_NETWORK_CONTEXT;
+
+VOID _app_network_stop ();
 
 VOID _app_network_initialize (
 	_In_ HWND hwnd

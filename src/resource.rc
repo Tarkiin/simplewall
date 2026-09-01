@@ -110,6 +110,7 @@ BEGIN
 		END
 		MENUITEM SEPARATOR
 		MENUITEM " ", IDM_USENETWORKRESOLUTION_CHK
+		MENUITEM " ", IDM_UDPTRAFFIC_CHK
 		MENUITEM " ", IDM_USECERTIFICATES_CHK
 		MENUITEM " ", IDM_KEEPUNUSED_CHK
 		MENUITEM " ", IDM_USEHASHES_CHK
@@ -842,6 +843,10 @@ BEGIN
 	IDS_WARNING_UNEXPECTED L"Be careful, through service/driver host (svchost.exe/System) internet traffic can let out through unexpected ways. Continue?"
 	IDS_WARNING_ME "If you disallow main process, you cannot use resolve network addresses option. Continue?"
 	IDS_TOTAL "Total"
+	IDS_UDP_ACCOUNTING "UDP (including QUIC): ETW bytes since this socket was first monitored."
+	IDS_UDP_UNAVAILABLE "UDP measurement unavailable or incomplete. Restart simplewall to retry. Error"
+	IDS_UDP_PENDING "UDP: no verified measurement yet. Sockets opened before monitoring must be reopened."
+	IDS_UDPTRAFFIC_CHK "Measure UDP/QUIC traffic (experimental, restart required)"
 END
 
 //
