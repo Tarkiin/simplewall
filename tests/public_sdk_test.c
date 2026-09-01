@@ -6,6 +6,35 @@ static unsigned failures;
 
 static VOID NTAPI signal_test_thread(PVOID argument) { SetEvent((HANDLE)argument); }
 
+static void version_resource(void)
+{
+    WCHAR path[MAX_PATH];
+    CHECK(GetSystemDirectoryW(path,RTL_NUMBER_OF(path))>0);
+    CHECK(wcscat_s(path,RTL_NUMBER_OF(path),L"\\kernel32.dll")==0);
+    R_STRINGREF name;
+    _r_obj_initializestringref(&name,path);
+    HINSTANCE module=NULL;
+    CHECK(NT_SUCCESS(_r_sys_loadlibraryasresource(&module,&name)));
+    if(!module) return;
+    R_STORAGE resource={0};
+    NTSTATUS status=_r_res_loadresource(&resource,module,RT_VERSION,MAKEINTRESOURCE(VS_VERSION_INFO),0);
+    CHECK(NT_SUCCESS(status));
+    if(NT_SUCCESS(status))
+    {
+        // Match the application's startup path, including a read-only mapped
+        // resource. Reversing these void-pointer arguments used to write here.
+        VS_FIXEDFILEINFO *version=NULL;
+        CHECK(_r_res_queryversion((PVOID_PTR)&version,resource.buffer));
+        CHECK(version && version->dwSignature==VS_FFI_SIGNATURE);
+        CHECK(version && HIWORD(version->dwFileVersionMS)>0);
+        LCID language=_r_res_querytranslation(resource.buffer);
+        PR_STRING description=_r_res_querystring(resource.buffer,L"FileDescription",language);
+        CHECK(description && description->length>0);
+        if(description) _r_obj_dereference(description);
+    }
+    _r_sys_freelibrary(module);
+}
+
 static void strings_and_table(void)
 {
     WCHAR bounded[] = {L'A',L'b',L'C',L'X'};
@@ -119,6 +148,15 @@ static void files_and_compression(void)
 
 static void handles_and_ui(void)
 {
+    BYTE sid[SECURITY_MAX_SID_SIZE],unchanged[SECURITY_MAX_SID_SIZE];
+    DWORD sid_size=sizeof(sid);
+    CHECK(CreateWellKnownSid(WinLocalSystemSid,NULL,sid,&sid_size));
+    memcpy(unchanged,sid,sid_size);
+    PR_STRING sid_text=NULL;
+    CHECK(NT_SUCCESS(_r_str_fromsid(&sid_text,sid)));
+    CHECK(sid_text && wcscmp(sid_text->buffer,L"S-1-5-18")==0);
+    CHECK(memcmp(unchanged,sid,sid_size)==0);
+    if(sid_text) _r_obj_dereference(sid_text);
     HANDLE process=NULL,token=NULL,key=NULL;
     CHECK(NT_SUCCESS(_r_sys_openprocess(&process,GetCurrentProcessId(),PROCESS_QUERY_LIMITED_INFORMATION)));
     if (process)
@@ -167,6 +205,11 @@ static void handles_and_ui(void)
     CHECK(window!=NULL);
     if(window)
     {
+        HWND list=CreateWindowExW(0,WC_LISTVIEWW,L"",WS_CHILD|LVS_REPORT,0,50,200,100,window,(HMENU)12,GetModuleHandleW(NULL),NULL);
+        CHECK(list!=NULL);
+        CHECK(_r_listview_additem(window,12,INT_ERROR,L"first",I_DEFAULT,I_DEFAULT,71)==0);
+        CHECK(_r_listview_additem(window,12,INT_ERROR,L"second",I_DEFAULT,I_DEFAULT,72)==1);
+        CHECK(_r_listview_getitemcount(window,12)==2);
         CHECK(_r_wnd_setcontext(window,51,(PVOID)(ULONG_PTR)123));
         CHECK(_r_wnd_getcontext(window,51)==(PVOID)(ULONG_PTR)123);
         CHECK(_r_wnd_removecontext(window,51));
@@ -195,7 +238,7 @@ static void handles_and_ui(void)
 int main(void)
 {
     setvbuf(stdout,NULL,_IONBF,0);
-    strings_and_table(); configuration(); files_and_compression(); handles_and_ui();
+    strings_and_table(); configuration(); files_and_compression(); handles_and_ui(); version_resource();
     printf("PUBLIC SDK CONTRACT TESTS: %u failures\n",failures);
     return failures?1:0;
 }

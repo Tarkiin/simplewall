@@ -91,12 +91,14 @@ and the reverse at the client. Both independent counters and both production
 row totals matched. The loopback and LAN tests each verified the larger
 12,000,000-byte UDP case without discrepancies.
 
-The integration executable links application objects but calls neither WinMain
-nor DlgProc. It uses isolated portable configuration, ordinary hidden windows,
-network update functions and the column callback. No installed Simplewall
-binary, firewall rule, adapter setting or unrelated ETW session was changed.
-Full application startup/filter workflows were not exercised; these component
-checks are not a release certification for the optional SDK adapter.
+The integration executable uses isolated portable configuration, ordinary hidden
+windows, network update functions and the column callback. A separate startup
+probe calls the actual WinMain and DlgProc with a test-only WFP object that cannot
+open the filtering engine or toggle Windows Firewall. It verified the connections
+tab and an exact 120,000-byte UDP loopback total in both directions, with the
+option enabled and disabled in separate runs. No installed Simplewall binary,
+firewall rule, adapter setting or unrelated ETW session was changed. Filter
+workflows are still outside this validation scope.
 
 ## Reproduce
 
@@ -106,6 +108,9 @@ Run from the repository root with VS2022 C++ tools and PowerShell 7:
 .\tools\build-public-sdk.ps1
 .\tests\build-public-sdk-tests.cmd
 .\tests\build-public-sdk-tests.cmd --asan
+.\tests\build-startup-probe.cmd
+.\tests\run-startup-probe.ps1
+.\tests\run-startup-probe.ps1 -UdpDisabled
 .\tests\build-udp-tests.cmd
 .\temp\udpstats_test.exe
 .\tests\check-udp-memory.cmd

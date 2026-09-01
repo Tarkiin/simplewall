@@ -51,9 +51,9 @@ does not authorize changing the user's firewall rules for a UI test.
 - Preparation checks the exact SHA-256 of the upstream `routine.c` before making
   that substitution. An unexpected upstream version fails instead of being edited.
 
-These local adaptations do not reconstruct the unpublished SDK. UI helpers,
-window behavior, resource handling and complete application workflows still
-need end-to-end validation before a release.
+These local adaptations do not reconstruct the unpublished SDK. The test-only
+startup build blocks access to the WFP engine and the Windows Firewall toggle,
+so filter installation and removal still require validation with the owner's SDK.
 
 ## Validation
 
@@ -70,9 +70,18 @@ adapter's standalone contract suite passed normally and under AddressSanitizer:
   agreement with Windows, suspended-thread start and completion.
 - Hidden test-window context, edit selection/read-only state/margins and checkbox
   state, including the control-helper renames in the August application source.
+- Version-resource and SID conversion argument order, plus append semantics for
+  list-view items. These regressions cover the startup access violation and the
+  initially empty connections list found in the first packaged build.
+- The actual WinMain/DialogProc startup path opens, selects the connections tab,
+  starts or omits the UDP collector according to configuration, and exits cleanly.
+  With UDP enabled it measured a 120,000-byte loopback burst exactly in both
+  directions and removed its ETW session on shutdown.
 
-The tests use a separate application name and portable configuration under
-`temp/public-sdk-tests/`. They do not call the firewall APIs or application startup.
+The contract tests use a separate application name and portable configuration
+under `temp/public-sdk-tests/`. The startup probe uses isolated configuration
+under `temp/startup-probe/` and replaces only its own linked WFP object with a
+test implementation that cannot open the filtering engine or toggle the firewall.
 UDP/QUIC and production UI callback tests are documented separately in
-[UDP measurement](udp-measurement.md). Full application startup and firewall
-workflows remain outside this adapter's validation scope.
+[UDP measurement](udp-measurement.md). Filter workflows remain outside this
+adapter's validation scope.

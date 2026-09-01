@@ -35,6 +35,7 @@ typedef const SID *PCSID;
 #define _r_sys_loadicon(out,module,name,size) _r_sys_loadicon(module,name,size,out)
 #define _r_res_loadimage(out,module,type,name,format,width,height) _r_res_loadimage(module,type,name,format,width,height,out)
 #define _r_res_loadresource(out,module,type,name,language) _r_res_loadresource(module,type,name,language,out)
+#define _r_res_queryversion(out,block) _r_res_queryversion(block,out)
 #define _r_imagelist_create(out,width,height,flags,count,grow) _r_imagelist_create(width,height,flags,count,grow,out)
 #define _r_imagelist_getsystem(out,size) _r_imagelist_getsystem(size,out)
 #define _r_imagelist_setsize(list,width,height) IImageList2_SetIconSize((IImageList2 *)(list),width,height)
@@ -85,6 +86,7 @@ static inline NTSTATUS sw_compat_filehash(PR_STRING_PTR output,LPCWSTR algorithm
 #define _r_crypt_getfilehash sw_compat_filehash
 #define _r_str_environmentexpandstring(out,environment,name) _r_str_environmentexpandstring(environment,(PR_STRINGREF)(name),out)
 #define _r_str_fromguid(out,guid,upper) _r_str_fromguid((LPGUID)(guid),upper,out)
+#define _r_str_fromsid(out,sid) _r_str_fromsid((PSID)(sid),out)
 #define _r_unixtime_to_filetime(out,time) _r_unixtime_to_filetime(time,out)
 #define _r_calc_filetime2largeinteger(out,time) _r_calc_filetime2largeinteger(time,out)
 #define _r_path_geticon(path,icon,index) _r_path_geticon((PR_STRINGREF)(path),index,icon)
@@ -229,6 +231,13 @@ static inline VOID sw_compat_dialogpath(PR_FILE_DIALOG dialog,PCR_STRINGREF path
 }
 #define _r_filedialog_setpath sw_compat_dialogpath
 #define _r_listview_setstyle(hwnd,id,style,groups) _r_listview_setstyle(hwnd,id,(ULONG)(style),groups)
+// The current app uses INT_ERROR for append; LVM_INSERTITEM rejects -1.
+static inline INT sw_compat_additem(HWND hwnd,INT id,INT index,LPWSTR text,INT image,INT group,LPARAM parameter)
+{
+    if(index==INT_ERROR) index=_r_listview_getitemcount(hwnd,id);
+    return _r_listview_additem(hwnd,id,index,text,image,group,parameter);
+}
+#define _r_listview_additem sw_compat_additem
 static inline PR_STRINGREF sw_compat_imagepath(void)
 {
     static R_INITONCE once=PR_INITONCE_INIT;
